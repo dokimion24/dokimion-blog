@@ -1,21 +1,50 @@
 'use client'
 
-import { Comments as CommentsComponent } from 'pliny/comments'
-import { useState } from 'react'
 import siteMetadata from '@/data/siteMetadata'
+import { Comments as CommentsComponent } from 'pliny/comments'
+import { useEffect, useRef } from 'react'
+import { useTheme } from 'next-themes'
 
 export default function Comments({ slug }: { slug: string }) {
-  const [loadComments, setLoadComments] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const { resolvedTheme } = useTheme()
 
-  if (!siteMetadata.comments?.provider) {
-    return null
-  }
+  // https://github.com/giscus/giscus/tree/main/styles/themes
+  const theme = resolvedTheme === 'dark' ? 'dark' : 'light'
+
+  useEffect(() => {
+    if (!ref.current || ref.current.hasChildNodes() || siteMetadata.comments) return
+
+    const scriptElem = document.createElement('script')
+    scriptElem.src = 'https://giscus.app/client.js'
+    scriptElem.async = true
+    scriptElem.crossOrigin = 'anonymous'
+
+    scriptElem.setAttribute('data-repo', process.env.NEXT_PUBLIC_GISCUS_REPO!)
+    scriptElem.setAttribute('data-repo-id', process.env.NEXT_PUBLIC_GISCUS_REPOSITORY_ID!)
+    scriptElem.setAttribute('data-category', process.env.NEXT_PUBLIC_GISCUS_CATEGORY!)
+    scriptElem.setAttribute('data-category-id', process.env.NEXT_PUBLIC_GISCUS_CATEGORY_ID!)
+    scriptElem.setAttribute('data-mapping', 'pathname')
+    scriptElem.setAttribute('data-strict', '0')
+    scriptElem.setAttribute('data-reactions-enabled', '1')
+    scriptElem.setAttribute('data-emit-metadata', '0')
+    scriptElem.setAttribute('data-input-position', 'bottom')
+    scriptElem.setAttribute('data-theme', theme)
+    scriptElem.setAttribute('data-lang', 'ko')
+
+    ref.current.appendChild(scriptElem)
+  }, [theme])
+
+  useEffect(() => {
+    const iframe = document.querySelector<HTMLIFrameElement>('iframe.giscus-frame')
+    iframe?.contentWindow?.postMessage({ giscus: { setConfig: { theme } } }, 'https://giscus.app')
+  }, [theme])
+
   return (
     <>
-      {loadComments ? (
+      <section ref={ref} />
+      {siteMetadata.comments?.provider && (
         <CommentsComponent commentsConfig={siteMetadata.comments} slug={slug} />
-      ) : (
-        <button onClick={() => setLoadComments(true)}>Load Comments</button>
       )}
     </>
   )
